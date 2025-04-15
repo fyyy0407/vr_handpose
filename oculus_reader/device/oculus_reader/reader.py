@@ -42,6 +42,9 @@ class OculusReader:
 
     def __del__(self):
         self.stop()
+        
+    def IsRunning(self):
+        return self.running
 
     def run(self):
         self.running = True
@@ -241,8 +244,8 @@ def main():
     while True:
         # time.sleep(0.3)
         time.sleep(3)
-        print(oculus_reader.print_rot_trans())
-        # print(oculus_reader.get_transformations_and_buttons())
+        # print(oculus_reader.print_rot_trans())
+        print(oculus_reader.get_transformations_and_buttons())
 
 
 if __name__ == '__main__':

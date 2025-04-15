@@ -1,0 +1,18 @@
+hardware:
+  robot:
+    _target_: "device.robot.flexiv.FlexivRobot"  
+    robot_ip_address: "192.168.1.10"      
+    pc_ip_address: "192.168.1.20"                                   
+  camera:
+    _target_: "device.camera.realsense.RealSenseRGBDCamera"  
+    serial: "750612070851" 
+  oculus_reader:
+    _target_: "device.oculus_reader.reader.OculusReader"  
+    port: "5555"
+
+shm_name:
+  robot: "robot_shm"
+  gripper: "gripper_shm"
+  camera: "camera_shm"
+  oculus_reader: "oculus_reader"
+
