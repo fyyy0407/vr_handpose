@@ -12,16 +12,11 @@ import threading
 import multiprocessing
 
 from pynput import keyboard
-from omegaconf import OmegaConf
-from easyrobot.utils.logger import ColoredLogger
 
-from .teledata.constants import *
-from .teledata.utils import resolve_logger
-from .teledata.converter import PoseConverter
 
-from device.robot.flexiv import FlexivRobot
-from utils.transformation import xyz_rot_transform
-from device.camera.realsense import RealSenseRGBDCamera
+from teledata.constants import *
+from teledata.converter import PoseConverter
+
 
 from OyMotion.Glove import *
 from OyMotion.ROHand import *
@@ -30,6 +25,19 @@ loop = True
 state = 0
 finish_time = 0
 finish_rating = 0
+
+def configure_logger(name, level=logging.INFO):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    # 如果logger已有handler则不重复添加
+    if not logger.handlers:
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+    return logger
 
 def _on_press(key):
     global loop, state, finish_time, finish_rating
@@ -142,8 +150,8 @@ def start_glove_control(glove_queue):
 )
 def main(cfg):
     # Setup logger
-    logger = resolve_logger(cfg.logger.teleop)
-    
+    logger = configure_logger("teleop", level=logging.INFO)
+
     ############## INITIALIZATION #################
     logger.info("Initialization......")
     robot = hydra.utils.instantiate(
@@ -151,7 +159,8 @@ def main(cfg):
         shm_name=cfg.shm_name.robot
     )    
     robot_init_pose = np.array(cfg.pose.init.robot)
-    robot.send_tcp_pose(robot_init_pose)
+    # robot.send_tcp_pose(robot_init_pose)
+    print("init pose: ",robot_init_pose)
     
     camera = hydra.utils.instantiate(
         cfg.hardware.camera, 
