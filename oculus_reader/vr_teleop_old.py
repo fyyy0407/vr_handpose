@@ -31,6 +31,19 @@ state = 0
 finish_time = 0
 finish_rating = 0
 
+def configure_logger(name, level=logging.INFO):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    # 如果logger已有handler则不重复添加
+    if not logger.handlers:
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+    return logger
+
 def _on_press(key):
     global loop, state, finish_time, finish_rating
     try:
@@ -142,8 +155,8 @@ def start_glove_control(glove_queue):
 )
 def main(cfg):
     # Setup logger
-    logger = resolve_logger(cfg.logger.teleop)
-    
+    logger = configure_logger("teleop", level=logging.INFO)
+
     ############## INITIALIZATION #################
     logger.info("Initialization......")
     robot = hydra.utils.instantiate(
