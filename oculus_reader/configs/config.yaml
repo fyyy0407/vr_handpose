@@ -1,13 +1,30 @@
 hardware:
   type: 
-    config: 1
+    config: 10
   robot:
     _target_: "device.robot.flexiv.FlexivRobot"  
     robot_ip_address: "192.168.2.100"      
     pc_ip_address: "192.168.2.35"                                   
   camera:
-    _target_: "device.camera.realsense.RealSenseRGBDCamera"  
-    serial: "750612070851" 
+    main: "104122060902"
+    global:
+      "104122060902":
+        _target_: easyrobot.camera.realsense.RealSenseRGBDCamera
+        frame_rate: 30
+        resolution: [1280, 720]
+        enable_emitter: True
+        align: True
+        logger_name: Global Camera
+        streaming_freq: 30
+    inhand:
+      "043322070878":
+        _target_: easyrobot.camera.realsense.RealSenseRGBDCamera
+        frame_rate: 30
+        resolution: [1280, 720]
+        enable_emitter: True
+        align: True
+        logger_name: Inhand Camera
+        streaming_freq: 30
   oculus_reader:
     _target_: "device.oculus_reader.reader.OculusReader"  
     port: "5555"
@@ -29,9 +46,13 @@ teleop:
 task_id: 888
 user_id: 888
 scene_id: 888
+cfg_id: ${hardware.type.config}
 
-# shm_name:
-#   robot: "robot_shm"
-#   gripper: "gripper_shm"
-#   camera: "camera_shm"
-#   oculus_reader: "oculus_reader"
+shm_name:
+  main_camera_color: "main_color"
+  main_camera_depth: "main_depth"
+  # robot: "robot_shm"
+  # gripper: "gripper_shm"
+  # camera: "camera_shm"
+  # oculus_reader: "oculus_reader"
+

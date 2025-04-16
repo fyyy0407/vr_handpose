@@ -60,40 +60,6 @@ def _on_press(key):
 def _on_release(key):
     pass
 
-def recorder_process(queue, folder_path):
-    """
-    子进程函数：不断从队列中读取观察数据，保存图像文件并将记录写入 JSONL 文件
-    """
-    observations_file = os.path.join(folder_path, "observations.jsonl")
-    with open(observations_file, "w") as obs_f:
-        while True:
-            obs = queue.get()
-            if obs is None:
-                # 接收到终止信号，退出循环
-                break
-
-            # 使用时间戳生成图像文件名
-            timestamp = obs["timestamp"]
-            color_filename = os.path.join(folder_path, f"frame_{timestamp}_color.png")
-            depth_filename = os.path.join(folder_path, f"frame_{timestamp}_depth.png")
-            
-            # 保存颜色图像
-            cv2.imwrite(color_filename, obs["colors"])
-            # 对深度图进行归一化并保存
-            depths_norm = cv2.normalize(obs["depths"], None, 0, 255, cv2.NORM_MINMAX)
-            depths_norm = depths_norm.astype('uint8')
-            cv2.imwrite(depth_filename, depths_norm)
-            
-            # 构造记录数据：包括时间戳、TCP 位姿、抓手状态以及图像文件路径
-            record = {
-                "timestamp": timestamp,
-                "tcp_pose": obs["tcp_pose"],
-                "color_image": color_filename,
-                "depth_image": depth_filename
-            }
-            obs_f.write(json.dumps(record) + "\n")
-            obs_f.flush()
-
 
 def recorder_process_glove(queue, folder_path):
     """
@@ -164,13 +130,17 @@ def main(cfg):
     # robot.send_tcp_pose(robot_init_pose)
     print("init pose: ",robot_init_pose)
     
-    camera = hydra.utils.instantiate(
-        cfg.hardware.camera, 
-        # shm_name=cfg.shm_name.camera
-    )    
-    for _ in range(30): 
-        camera.get_rgbd_image()
-        
+    # Initialize camera, assuming that the first global camera is the main camera.
+    # main_serial = cfg.hardware.camera.main
+    # logger.info("Initialize main camera {} ...".format(main_serial))
+    # assert main_serial in (list(cfg.hardware.camera["global"].keys()) + list(cfg.hardware.camera["inhand"].keys())), \
+    #     "Cannot find main camera {} in camera list.".format(main_serial)
+    # main_camera = hydra.utils.instantiate(
+    #     cfg.hardware.camera["global" if main_serial in cfg.hardware.camera["global"].keys() else "inhand"][main_serial], 
+    #     serial = main_serial,
+    #     shm_name_rgb = cfg.shm_name.main_camera_color,
+    #     shm_name_depth = cfg.shm_name.main_camera_depth
+    # )
     oculus_reader = hydra.utils.instantiate(
         cfg.hardware.oculus_reader,
         # shm_name=cfg.shm_name.oculus_reader
@@ -195,58 +165,96 @@ def main(cfg):
 
     # 创建用于跨进程传递数据的队列，并启动子进程记录观测数据
     data_queue = multiprocessing.Queue()
-    recorder_proc = multiprocessing.Process(target=recorder_process, args=(data_queue, path))
-    recorder_proc.start()
+
     
-    # 创建新的队列用于记录灵巧手数据，并启动对应的子进程
-    glove_queue = multiprocessing.Queue()
-    glove_recorder_proc = multiprocessing.Process(target=recorder_process_glove, args=(glove_queue, path))
-    glove_recorder_proc.start()
+    # # 创建新的队列用于记录灵巧手数据，并启动对应的子进程
+    # glove_queue = multiprocessing.Queue()
+    # glove_recorder_proc = multiprocessing.Process(target=recorder_process_glove, args=(glove_queue, path))
+    # glove_recorder_proc.start()
 
     # 启动手套控制线程，用于控制灵巧手
-    node_id = cfg.hardware.glove_control.node_id
-    com_port = cfg.hardware.glove_control.com_port
-    calib = cfg.hardware.glove_control.calib
-    glove_thread = threading.Thread(target=start_glove_control, args=(glove_queue,node_id,com_port,calib),daemon=True)
-    glove_thread.start()
+    # node_id = cfg.hardware.glove_control.node_id
+    # com_port = cfg.hardware.glove_control.com_port
+    # calib = cfg.hardware.glove_control.calib
+    # glove_thread = threading.Thread(target=start_glove_control, args=(glove_queue,node_id,com_port,calib),daemon=True)
+    # glove_thread.start()
 
-    time.sleep(cfg.wait_time.collector_start)
+    
+    # # Call subprocesses to collect data
+    # logger.info("Initialize collectors ...")
+    # temp_file_list = []
+    # for serial in (list(cfg.hardware.camera["global"].keys()) + list(cfg.hardware.camera["inhand"].keys())):
+    #     cfg.collector_serial = serial
+    #     # Save temporary configuration files
+    #     with tempfile.NamedTemporaryFile(delete = False, suffix = ".yaml") as temp_file:
+    #         OmegaConf.save(cfg, temp_file.name)
+    #         temp_file_list.append(temp_file.name)
+    #     # Open subprocess to collect data
+    #     temp_file_path = temp_file_list[-1]
+    #     subprocess.Popen(
+    #         [
+    #             "python",
+    #             "-m",
+    #             "teledata.collector",
+    #             "--config-dir={}".format(temp_file_path.rsplit('/', 1)[0]),
+    #             "--config-name={}".format(temp_file_path.rsplit('/', 1)[1]),
+    #             "hydra/hydra_logging=disabled",
+    #             "hydra/job_logging=disabled"
+    #         ]
+    #     )
+    
+    # time.sleep(cfg.wait_time.collector_start)
     logger.info("Start teleoperation!")
 
     # 主循环中采集数据，并将数据发送给记录子进程
     while loop:
+        time.sleep(0.3)
         vr_transforms, vr_buttons = oculus_reader.get_transformations_and_buttons()
-        tcp_pose = converter.step(vr_transforms)
+        print('vr_transforms:',vr_transforms)
+        tcp_pose = converter.step(vr_transforms['r'])
         # robot.send_tcp_pose(tcp_pose)
         print("new tcp pose: ",tcp_pose)
          
         ################ Record Operation and Observation ################
 
-        # 读取相机 RGBD 数据
-        colors, depths = camera.get_rgbd_image()
-        
         timestamp = int(time.time() * 1000)
         
         # 将所有数据打包成字典，注意将 tcp_pose 转换为列表
-        obs = {
-            "timestamp": timestamp,
-            "tcp_pose": tcp_pose.tolist(),
-            "colors": colors,  
-            "depths": depths
-        }
+        # obs = {
+        #     "timestamp": timestamp,
+        #     "tcp_pose": tcp_pose.tolist(),
+        # }
         
         # 将观测数据发送给记录子进程（异步写入）
-        data_queue.put(obs)
+        # data_queue.put(obs)
         
         time.sleep(0.05)  
 
+    # camera_info = {}
+    # for cam_serial in cfg.hardware.camera["inhand"].keys():
+    #     camera_info[cam_serial] = "inhand"
+    # for cam_serial in cfg.hardware.camera["global"].keys():
+    #     camera_info[cam_serial] = "global"
+    # all_keys = list(KEYS["robot"][cfg.hardware.type.robot].keys()) + list(KEYS["gripper"][cfg.hardware.type.gripper].keys())
+    # extra_keys = [key for key in all_keys if key not in ["tcp", "joint", "ee_state", "ee_command"]]
+    # meta = {
+    #     "finish_time": finish_time,
+    #     "rating": finish_rating,
+    #     "robot_type": "single_arm",
+    #     "camera_info": camera_info,
+    #     "main_camera": main_serial,
+    #     "extra_keys": extra_keys
+    # }
+    # with open(os.path.join(path, "metadata.json"), "w") as f:
+    #     json.dump(meta, f)
+    
     data_queue.put(None)
-    glove_queue.put(None)
+    # glove_queue.put(None)
     listener.stop()
-    robot.stop()
-    recorder_proc.join()  
-    glove_recorder_proc.join()
-    glove_thread.join(timeout=1)
+    # main_camera.stop()
+    robot.stop() 
+    # glove_recorder_proc.join()
+    # glove_thread.join(timeout=1)
 
 if __name__ == '__main__':
     main()
