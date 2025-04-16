@@ -108,18 +108,16 @@ def recorder_process_glove(queue, folder_path):
             f.flush()
 
 
-async def glove_control_main(glove_queue):
+async def glove_control_main(glove_queue,NODE_ID,COM_PORT,calib):
     """
     Finger Control
     """
-    NODE_ID = 2
-    COM_PORT = "/dev/ttyUSB0"
     client = ROHand(COM_PORT, NODE_ID)
     client.connect()
     glove_ctrl = Glove()
     await glove_ctrl.connect_gforce_device()
 
-    await glove_ctrl.calib(False)
+    await glove_ctrl.calib(calib)
     print("finish calib")
     client.reset()
     print("finish reset")
@@ -142,8 +140,8 @@ async def glove_control_main(glove_queue):
         await glove_ctrl.gforce_device.stop_streaming()
         await glove_ctrl.gforce_device.disconnect()
 
-def start_glove_control(glove_queue):
-    asyncio.run(glove_control_main(glove_queue))
+def start_glove_control(glove_queue,NODE_ID,COM_PORT,calib):
+    asyncio.run(glove_control_main(glove_queue,NODE_ID,COM_PORT,calib))
     
 @hydra.main(
     version_base=None,
@@ -203,7 +201,10 @@ def main(cfg):
     glove_recorder_proc.start()
 
     # 启动手套控制线程，用于控制灵巧手
-    glove_thread = threading.Thread(target=start_glove_control, daemon=True)
+    node_id = cfg.hardware.glove_control.node_id
+    com_port = cfg.hardware.glove_control.com_port
+    calib = cfg.hardware.glove_control.calib
+    glove_thread = threading.Thread(target=start_glove_control, args=(glove_queue,node_id,com_port,calib),daemon=True)
     glove_thread.start()
 
     time.sleep(cfg.wait_time.collector_start)
