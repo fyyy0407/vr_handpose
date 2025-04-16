@@ -128,7 +128,8 @@ async def glove_control_main(glove_queue):
         while not glove_ctrl.terminated:
             await glove_ctrl.get_pos()
             # 直接调用 set_finger_pos 控制灵巧手的每个手指
-            resp = client.set_finger_pos(ROH_FINGER_POS_TARGET0, glove_ctrl.finger_data)
+            # resp = client.set_finger_pos(ROH_FINGER_POS_TARGET0, glove_ctrl.finger_data)
+            print("finger pose: ",glove_ctrl.finger_data)
             # record data
             finger_positions = client.get_current_pos()
             glove_data = {
@@ -212,7 +213,8 @@ def main(cfg):
     while loop:
         vr_transforms, vr_buttons = oculus_reader.get_transformations_and_buttons()
         tcp_pose = converter.step(vr_transforms)
-        robot.send_tcp_pose(tcp_pose)
+        # robot.send_tcp_pose(tcp_pose)
+        print("new tcp pose: ",tcp_pose)
          
         ################ Record Operation and Observation ################
 
