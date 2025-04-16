@@ -1,18 +1,37 @@
 hardware:
+  type: 
+    config: 1
   robot:
     _target_: "device.robot.flexiv.FlexivRobot"  
-    robot_ip_address: "192.168.1.10"      
-    pc_ip_address: "192.168.1.20"                                   
+    robot_ip_address: "192.168.2.100"      
+    pc_ip_address: "192.168.2.35"                                   
   camera:
     _target_: "device.camera.realsense.RealSenseRGBDCamera"  
     serial: "750612070851" 
   oculus_reader:
     _target_: "device.oculus_reader.reader.OculusReader"  
     port: "5555"
+  glove_control:
+    node_id: 2
+    com_port: "/dev/ttyUSB0"
+    calib: False
 
-shm_name:
-  robot: "robot_shm"
-  gripper: "gripper_shm"
-  camera: "camera_shm"
-  oculus_reader: "oculus_reader"
+pose:
+    init:
+        robot: [0.5, 0.0, 0.17, 0.0, 0.0, 1.0, 0.0]
 
+logger:
+    teleop: "teleop"
+
+teleop:
+    data_path: /home/ubuntu/data
+
+task_id: 888
+user_id: 888
+scene_id: 888
+
+# shm_name:
+#   robot: "robot_shm"
+#   gripper: "gripper_shm"
+#   camera: "camera_shm"
+#   oculus_reader: "oculus_reader"

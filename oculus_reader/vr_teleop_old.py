@@ -10,6 +10,7 @@ import numpy as np
 import asyncio
 import threading
 import multiprocessing
+from omegaconf import OmegaConf
 
 from pynput import keyboard
 
@@ -145,9 +146,11 @@ def start_glove_control(glove_queue,NODE_ID,COM_PORT,calib):
     
 @hydra.main(
     version_base=None,
-    config_path=os.path.join("configs")
+    config_path=os.path.join("configs"),
+    config_name="config"
 )
 def main(cfg):
+    # print(OmegaConf.to_yaml(cfg))
     # Setup logger
     logger = configure_logger("teleop", level=logging.INFO)
 
@@ -155,7 +158,7 @@ def main(cfg):
     logger.info("Initialization......")
     robot = hydra.utils.instantiate(
         cfg.hardware.robot, 
-        shm_name=cfg.shm_name.robot
+        # shm_name=cfg.shm_name.robot
     )    
     robot_init_pose = np.array(cfg.pose.init.robot)
     # robot.send_tcp_pose(robot_init_pose)
@@ -163,14 +166,14 @@ def main(cfg):
     
     camera = hydra.utils.instantiate(
         cfg.hardware.camera, 
-        shm_name=cfg.shm_name.camera
+        # shm_name=cfg.shm_name.camera
     )    
     for _ in range(30): 
         camera.get_rgbd_image()
         
     oculus_reader = hydra.utils.instantiate(
         cfg.hardware.oculus_reader,
-        shm_name=cfg.shm_name.oculus_reader
+        # shm_name=cfg.shm_name.oculus_reader
     )
     
     converter = PoseConverter(robot_pose=robot.get_tcp_pose())
