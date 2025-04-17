@@ -6,10 +6,7 @@ SHAPE = {
         "flexiv": [39],
         "realman": [19]
     },
-    "gripper": {
-        "dahuan": [2],
-        "robotiq": [2]
-    }
+    "rohand": [12]
 }
 
 KEYS = {
@@ -28,15 +25,9 @@ KEYS = {
             "force_torque": lambda res: res[13:19]
         }
     },
-    "gripper": {
-        "dahuan": {
-            "ee_state": lambda res: res[0:1],
-            "ee_command": lambda res: res[1:2]
-        },
-        "robotiq": {
-            "ee_state": lambda res: res[0:1],
-            "ee_command": lambda res: res[1:2]
-        }
+    "rohand":{
+        "pos": lambda res: res[0:6],
+        "angle": lambda res: res[6:12]
     }
 }
 

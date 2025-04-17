@@ -4,6 +4,7 @@ RealSense Camera.
 
 import numpy as np
 import pyrealsense2 as rs
+from multiprocessing import shared_memory
 
 
 class RealSenseRGBDCamera:
@@ -16,6 +17,8 @@ class RealSenseRGBDCamera:
         frame_rate = 30, 
         resolution = (1280, 720),
         align = True,
+        shm_name_rgb = None,
+        shm_name_depth = None,
         **kwargs
     ):
         '''
@@ -47,6 +50,24 @@ class RealSenseRGBDCamera:
         self.align_to = rs.stream.color
         self.align = rs.align(self.align_to)
         self.with_align = align
+        
+        # shared memory
+        H, W = resolution[1], resolution[0]
+        self.rgb_shape   = (H, W, 3)
+        self.depth_shape = (H, W)
+        
+         # 创建或打开共享内存
+        if shm_name_rgb and shm_name_depth:
+            # 主进程：create=True；其它进程：create=False
+            self.shm_rgb   = shared_memory.SharedMemory(name=shm_name_rgb,   create=True,
+                                    size=np.prod(self.rgb_shape)  * np.dtype(np.uint8).itemsize)
+            self.shm_depth = shared_memory.SharedMemory(name=shm_name_depth, create=True,
+                                    size=np.prod(self.depth_shape)* np.dtype(np.uint16).itemsize)
+            # 映射成 NumPy 数组视图
+            self.buf_rgb   = np.ndarray(self.rgb_shape,   dtype=np.uint8,   buffer=self.shm_rgb.buf)
+            self.buf_depth = np.ndarray(self.depth_shape, dtype=np.uint16, buffer=self.shm_depth.buf)
+        else:
+            self.shm_depth = self.shm_rgb = None
 
     def get_rgb_image(self):
         '''
@@ -55,6 +76,8 @@ class RealSenseRGBDCamera:
         frames = self.pipeline.wait_for_frames()
         color_frame = frames.get_color_frame()
         color_image = np.asanyarray(color_frame.get_data()).astype(np.uint8)
+        if self.shm_rgb:
+            self.buf_rgb[:] = color_image
         return color_image
 
     def get_depth_image(self):
@@ -63,8 +86,10 @@ class RealSenseRGBDCamera:
         '''
         frames = self.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
-        depth_image = np.asanyarray(depth_frame.get_data()).astype(np.float32) / self.depth_scale
-        return depth_image
+        depth_image = np.asanyarray(depth_frame.get_data()).astype(np.uint16) 
+        if self.shm_depth:
+            self.buf_depth[:] = depth_image
+        return depth_image / self.depth_scale
 
     def get_rgbd_image(self):
         '''
@@ -74,6 +99,17 @@ class RealSenseRGBDCamera:
         if self.with_align:
             frameset = self.align.process(frameset)
         color_image = np.asanyarray(frameset.get_color_frame().get_data()).astype(np.uint8)
-        depth_image = np.asanyarray(frameset.get_depth_frame().get_data()).astype(np.float32) / self.depth_scale
-        return color_image, depth_image
-
+        depth_image = np.asanyarray(frameset.get_depth_frame().get_data()).astype(np.uint16)
+        if self.shm_rgb and self.shm_depth:
+            self.buf_rgb[:]   = color_image
+            self.buf_depth[:] = depth_image
+        return color_image, depth_image / self.depth_scale
+    
+    def get_info(self):
+        color, depth = self.get_rgbd_image()
+        return color, depth
+    
+    def stop(self):
+        self.pipeline.stop()
+        self.shm_rgb.close();   self.shm_depth.close()
+        self.shm_rgb.unlink();  self.shm_depth.unlink()

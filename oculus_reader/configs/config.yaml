@@ -4,12 +4,14 @@ hardware:
   robot:
     _target_: "device.robot.flexiv.FlexivRobot"  
     robot_ip_address: "192.168.2.100"      
-    pc_ip_address: "192.168.2.35"                                   
+    pc_ip_address: "192.168.2.35"
+    safety_threshold: 0.05         
+    shm_name: ${shm_name.robot}                              
   camera:
     main: "104122060902"
     global:
       "104122060902":
-        _target_: easyrobot.camera.realsense.RealSenseRGBDCamera
+        _target_: device.camera.realsense.RealSenseRGBDCamera
         frame_rate: 30
         resolution: [1280, 720]
         enable_emitter: True
@@ -18,7 +20,7 @@ hardware:
         streaming_freq: 30
     inhand:
       "043322070878":
-        _target_: easyrobot.camera.realsense.RealSenseRGBDCamera
+        _target_: device.camera.realsense.RealSenseRGBDCamera
         frame_rate: 30
         resolution: [1280, 720]
         enable_emitter: True
@@ -28,21 +30,15 @@ hardware:
   oculus_reader:
     _target_: "device.oculus_reader.reader.OculusReader"  
     port: "5555"
-  glove_control:
+  rohand:
+    _target_: "device.OyMotion.ROHand.ROHand"
     node_id: 2
     com_port: "/dev/ttyUSB0"
+    shm_name: ${shm_name.rohand} 
+  glove:
+    _target_: "device.OyMotion.Glove.Glove"
     calib: False
-
-pose:
-    init:
-        robot: [0.5, 0.0, 0.17, 0.0, 0.0, 1.0, 0.0]
-
-logger:
-    teleop: "teleop"
-
-teleop:
-    data_path: /home/ubuntu/data
-
+    
 task_id: 888
 user_id: 888
 scene_id: 888
@@ -51,8 +47,7 @@ cfg_id: ${hardware.type.config}
 shm_name:
   main_camera_color: "main_color"
   main_camera_depth: "main_depth"
-  # robot: "robot_shm"
-  # gripper: "gripper_shm"
-  # camera: "camera_shm"
-  # oculus_reader: "oculus_reader"
+  robot: "robot_shm"
+  rohand: "rohand_shm"
+  oculus_reader: "oculus_reader"
 

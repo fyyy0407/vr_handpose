@@ -4,7 +4,7 @@ Flexiv robot ethernet communication python wrapper.
 
 import time
 import numpy as np
-
+from multiprocessing import shared_memory
 from device.robot import flexivrdk
 
 
@@ -20,7 +20,7 @@ class FlexivRobot:
 
     logger_name = "FlexivRobot"
 
-    def __init__(self, robot_ip_address, pc_ip_address):
+    def __init__(self, robot_ip_address, pc_ip_address, safty_threshold,shm_name=None):
         """
         Initialize.
 
@@ -36,8 +36,25 @@ class FlexivRobot:
         self.plan_info = flexivrdk.PlanInfo()
         self.robot_ip_address = robot_ip_address
         self.pc_ip_address = pc_ip_address
+        self.safty_threshold = safty_threshold
+        self.history_pose = [] 
         self.init_robot()
+        self.shm = None
+        if shm_name:
+            N = 14
+            self.shm = shared_memory.SharedMemory(
+                name=shm_name,
+                create=True,
+                size=N * np.dtype(np.float32).itemsize
+            )
+            # buf 视图
+            self.buf = np.ndarray((N,), dtype=np.float32, buffer=self.shm.buf)
 
+    def update_shared_memory(self):
+        if self.shm:
+            tcp    = self.get_tcp_pose()    # shape (7,)
+            joints = self.get_joint_pos()   # shape (7,)
+            self.buf[:] = np.hstack([tcp, joints]).astype(np.float32)
 
             
     def init_robot(self):
@@ -186,6 +203,9 @@ class FlexivRobot:
         self.robot.stop()
         while self.get_control_mode() != self.mode_mapper("idle"):
             time.sleep(0.005)
+        if self.shm:
+            self.shm.close()
+            self.shm.unlink()
 
     def set_max_contact_wrench(self, max_wrench):
         self.switch_mode("cart_impedance_online")
@@ -209,4 +229,16 @@ class FlexivRobot:
         """
         Send tcp pose.
         """
+        self.history_pose.append(tcp)
+        # check safety move
+        prev = np.asarray(self.history_pose[-1], dtype=np.float64)
+        dist = np.linalg.norm(tcp[:3] - prev[:3])
+        if dist > self.safety_threshold:
+            raise RuntimeError(
+                f"[Safety] TCP moved {dist:.3f} m > "
+                f"threshold {self.safety_threshold:.3f}"
+            )
+        self.history_pose.append(tcp.tolist())
+        # send pose
         self.send_impedance_online_pose(tcp)
+        self.update_shared_memory()
