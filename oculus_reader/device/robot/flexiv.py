@@ -20,7 +20,7 @@ class FlexivRobot:
 
     logger_name = "FlexivRobot"
 
-    def __init__(self, robot_ip_address, pc_ip_address, safty_threshold,shm_name=None):
+    def __init__(self, robot_ip_address, pc_ip_address, safety_threshold,shm_name=None):
         """
         Initialize.
 
@@ -36,7 +36,7 @@ class FlexivRobot:
         self.plan_info = flexivrdk.PlanInfo()
         self.robot_ip_address = robot_ip_address
         self.pc_ip_address = pc_ip_address
-        self.safty_threshold = safty_threshold
+        self.safety_threshold = safety_threshold
         self.history_pose = [] 
         self.init_robot()
         self.shm = None
