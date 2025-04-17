@@ -51,3 +51,7 @@ shm_name:
   rohand: "rohand_shm"
   oculus_reader: "oculus_reader"
 
+logger:
+  teleop: "TeleOP"
+  collector: "Collector"
+  calibrator: "Calibrator"
