@@ -62,9 +62,9 @@ def main(cfg):
     ############## INITIALIZATION #################
     logger.info("Initialize teleop device")
     glove_ctrl = Glove()
-    await glove_ctrl.connect_gforce_device()
-    await glove_ctrl.calib(cfg.hardware.glove.calib)
-    
+    asyncio.run(glove_ctrl.connect_gforce_device())
+    asyncio.run(glove_ctrl.calib(cfg.hardware.glove.calib))
+
     logger.info("Initialize robot and rohand")
     robot = hydra.utils.instantiate(
         cfg.hardware.robot, 
@@ -150,10 +150,9 @@ def main(cfg):
         # robot.send_tcp_pose(tcp_pose)
         print("new tcp pose: ",tcp_pose)
         
-        await glove_ctrl.get_pos()
+        asyncio.run(glove_ctrl.get_pos())
         resp = rohand.set_finger_pos(ROH_FINGER_POS_TARGET0, glove_ctrl.finger_data)
 
-        
         time.sleep(0.05)  
 
     camera_info = {}
@@ -178,8 +177,8 @@ def main(cfg):
     listener.stop()
     main_camera.stop()
     robot.stop() 
-    await glove_ctrl.gforce_device.stop_streaming()
-    await glove_ctrl.gforce_device.disconnect()
+    asyncio.run(glove_ctrl.gforce_device.stop_streaming())
+    asyncio.run(glove_ctrl.gforce_device.disconnect())
     
 
 
