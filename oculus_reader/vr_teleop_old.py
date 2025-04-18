@@ -11,6 +11,8 @@ import asyncio
 import threading
 import multiprocessing
 from omegaconf import OmegaConf
+from transforms3d.quaternions import qmult, qinverse,quat2mat
+from transforms3d.euler       import quat2euler
 
 from pynput import keyboard
 
@@ -48,7 +50,26 @@ def _on_press(key):
 
 def _on_release(key):
     pass
-    
+
+def check_trans(threshold,trans):
+    distX = trans[0]
+    distY = trans[1]
+    distZ = trans[2]
+    # return np.linalg.norm(delta[:3]) > threshold
+    return (distX>threshold or distY>threshold or distZ>threshold)
+
+def check_rot(threshold,roll,pitch,yaw):
+    angles = np.rad2deg([roll, pitch, yaw])
+    return any(abs(angles) > threshold)
+
+
+def detect_no_hand(matrix,tol = 1e-3):
+    return np.all(np.abs(matrix) < tol)
+
+def compare_rot(rot):
+    print("Standard rot: ",quat2mat([0,0,1,0]))
+    print("Current Rot: ",quat2mat(rot))
+
 @hydra.main(
     version_base=None,
     config_path=os.path.join("configs"),
@@ -141,11 +162,31 @@ def main(cfg):
     # time.sleep(cfg.wait_time.collector_start)
     logger.info("Start teleoperation!")
 
+    tcp = [robot_init_pose]
     # 主循环中采集数据，并将数据发送给记录子进程
     while loop:
         time.sleep(0.3)
         vr_transforms, vr_buttons = oculus_reader.get_transformations_and_buttons()
         tcp_pose = converter.step(vr_transforms['r'])
+        
+        if detect_no_hand(vr_transforms['r']):
+            logger.warning("Cannot detect hand")
+            continue
+        
+        trans = tcp_pose[:3] - tcp[-1][:3]
+        if check_trans(cfg.threshold.trans,trans):
+            logger.warning("Skipped translation > {:.1f}cm on at least one axis".format(cfg.threshold.trans))
+            continue
+        
+        q_rel  = qmult(tcp_pose[3:], qinverse(tcp[-1][3:]))
+        roll, pitch, yaw = quat2euler(q_rel, axes='sxyz')
+        if check_rot(cfg.threshold.rot,roll,pitch,yaw):
+            logger.warning("Skipped rotation > {:.1f}° on at least one axis".format(cfg.threshold.rot))
+            continue
+        tcp.append(tcp_pose)
+        
+        compare_rot(tcp_pose[3:])
+        input()
         
         print("new tcp pose: ",tcp_pose)
         input()

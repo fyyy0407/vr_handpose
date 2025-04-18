@@ -20,7 +20,7 @@ class FlexivRobot:
 
     logger_name = "FlexivRobot"
 
-    def __init__(self, robot_ip_address, pc_ip_address, safety_threshold,shm_name=None):
+    def __init__(self, robot_ip_address, pc_ip_address,shm_name=None):
         """
         Initialize.
 
@@ -36,8 +36,6 @@ class FlexivRobot:
         self.plan_info = flexivrdk.PlanInfo()
         self.robot_ip_address = robot_ip_address
         self.pc_ip_address = pc_ip_address
-        self.safety_threshold = safety_threshold
-        self.history_pose = [] 
         self.init_robot()
         self.shm = None
         if shm_name:
@@ -229,16 +227,6 @@ class FlexivRobot:
         """
         Send tcp pose.
         """
-        self.history_pose.append(tcp)
-        # check safety move
-        prev = np.asarray(self.history_pose[-1], dtype=np.float64)
-        dist = np.linalg.norm(tcp[:3] - prev[:3])
-        if dist > self.safety_threshold:
-            raise RuntimeError(
-                f"[Safety] TCP moved {dist:.3f} m > "
-                f"threshold {self.safety_threshold:.3f}"
-            )
-        self.history_pose.append(tcp.tolist())
         # send pose
         self.send_impedance_online_pose(tcp)
         self.update_shared_memory()

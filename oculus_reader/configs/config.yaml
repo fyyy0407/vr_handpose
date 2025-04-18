@@ -4,8 +4,7 @@ hardware:
   robot:
     _target_: "device.robot.flexiv.FlexivRobot"  
     robot_ip_address: "192.168.2.100"      
-    pc_ip_address: "192.168.2.35"
-    safety_threshold: 0.05         
+    pc_ip_address: "192.168.2.35"       
     shm_name: ${shm_name.robot}                              
   camera:
     main: "104122060902"
@@ -62,3 +61,6 @@ pose:
 
 teleop:
   data_path: "/home/ubuntu/data" 
+
+threshold:
+  trans: 0.05
